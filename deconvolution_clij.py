@@ -2,12 +2,14 @@
 # @File(label="Select an Image directory", style="directory") img_folder
 # @File(label="Select an Output directory", style="directory") output_folder
 # @String(label="Graphic card", value="RTX", description="Set to empty to pick the first card") gpu_card
+# @String(label="File extension", value="nd2", description="File extension") fileExtension
 # @Integer(label="Deconvolution Iterations", value=100) iterations 
 # @Float(label="Deconvolution Regularization Factor", value=0.0, description="Usually, value should be betwen 0.001 and 0.01") regularizationFactor
 # @String(label="Rescale intensity Range",choices={"12bits","16bits", "Min/Max", "None"}, description="Rescale the intensity (12bits:0-4095, 16bits:0-65535, Min/Max:min/max intensity of the channel, should be for visualization only) before saving it in 16bits.") rescale_intensity_method
+# @boolean(label="Use in scrcipt", value=false) use_in_script
 # @OpService ops
 # @UIService ui
-# boolean(label="Use in scrcipt", value=false) use_in_script
+
 
 '''
 Deconvolution of multi-channel stacks in batch using the  Richardson Lucy FFT implementation from clijX using the GPU and save it in a dedicated folder
@@ -70,11 +72,9 @@ from ome.units import UNITS
 from java.awt import Color 
 
 #Filter to list only .jpg files from a directory
-def acceptFile(filename):
-  """ Work only with ND2 and Tif files. """
-  if(len(filename) - 4 == filename.rfind('.nd2')):
-    return True
-  if(len(filename) - 4 == filename.rfind('.tif')):
+def acceptFile(filename, file_extension):
+  """ Work only with file_extension. """
+  if(len(filename) - 4 == filename.rfind('.'+file_extension)):
     return True
   else:
     return False
@@ -84,7 +84,8 @@ def acceptFile(filename):
 #psf_file_list=sorted(os.listdir(psf_folder_path))
 
 img_folder_path=img_folder.getAbsolutePath()  
-img_file_list=sorted(os.listdir(img_folder_path))
+#img_file_list=sorted(os.listdir(img_folder_path))
+img_file_list = sorted([f for f in os.listdir(img_folder_path) if os.path.isfile(os.path.join(img_folder_path, f)) and f.endswith('.'+fileExtension)])
 
             
   
@@ -118,6 +119,8 @@ for nc in range(omeMeta.getChannelCount(0)):
   channel_name = omeMeta.getChannelName(0, nc)
   if channel_name:
     print('Channel name:'+omeMeta.getChannelName(0, nc))
+  else:
+    print('No channel name detected from the metadata')
   ome_color = omeMeta.getChannelColor(0,nc)
   #print(omeMeta.getChannelColor(0,nc))
   if(ome_color):
@@ -127,6 +130,7 @@ for nc in range(omeMeta.getChannelCount(0)):
     channels_luts.append(luts)
   else:
     channels_luts.append(None)
+    print('No channel color detected from the metadata')
 #lll
 #physSizeX.value(UNITS.MICROM)
             
@@ -192,7 +196,7 @@ for img_name in img_file_list:
     if(channels_luts[(c-1)]):
       deconvolved.setLut(channels_luts[(c-1)])
     else:
-      deconvolved.setLut(imp_psf_c.getLuts()[0])
+      deconvolved.setLut(imp_img_c.getLuts()[0])
     deconvolution_result_list.append(deconvolved)
 
   colorImp = RGBStackMerge.mergeChannels(deconvolution_result_list, True) #set to false to remove the original imageplus
@@ -201,16 +205,13 @@ for img_name in img_file_list:
   IJ.save(colorImp, os.path.join(output_folder.getAbsolutePath(), img_name[0:-4] + "_deconvolved.tiff"))
   IJ.log(img_name+' processed');
 
-gd = GenericDialog('Deconvolution is Done')
-gd.addMessage('Deconvolution is Done!')
-gd.showDialog()
-
-'''
-if(use_in_script == False):
-  gd = GenericDialog('Deconvolution is Done')
+if(use_in_script == True):
+  print('Deconvolution is Done!')
+else:
+  gd = GenericDialog('Deconvolution is Done!')
   gd.addMessage('Deconvolution is Done!')
   gd.showDialog()
-else:
-  print("Deconvolution is Done!")
+
+'''
 IJ.run("Close All", "")
 '''
