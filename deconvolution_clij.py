@@ -6,7 +6,7 @@
 # @Integer(label="Deconvolution Iterations", value=100) iterations 
 # @Float(label="Deconvolution Regularization Factor", value=0.0, description="Usually, value should be betwen 0.001 and 0.01") regularizationFactor
 # @String(label="Rescale intensity Range",choices={"12bits","16bits", "Min/Max", "None"}, description="Rescale the intensity (12bits:0-4095, 16bits:0-65535, Min/Max:min/max intensity of the channel, should be for visualization only) before saving it in 16bits.") rescale_intensity_method
-# @boolean(label="Use in scrcipt", value=false) use_in_script
+# @boolean(label="Use in script", value=false) use_in_script
 # @OpService ops
 # @UIService ui
 
@@ -87,8 +87,7 @@ img_folder_path=img_folder.getAbsolutePath()
 #img_file_list=sorted(os.listdir(img_folder_path))
 img_file_list = sorted([f for f in os.listdir(img_folder_path) if os.path.isfile(os.path.join(img_folder_path, f)) and f.endswith('.'+fileExtension)])
 
-            
-  
+   
 options = ImporterOptions()
 options.setId(psf_file.getAbsolutePath())
 options.setUngroupFiles(True)
@@ -96,7 +95,8 @@ options.setColorMode(ImporterOptions.COLOR_MODE_COLORIZED) #Open with Color defa
 options.setOpenAllSeries( False ) #Just open the 1st serie, the other one is just a thumbnail to have a quick overview
 imps_psf = BF.openImagePlus(options)
 imp_psf = imps_psf[0] 
-
+         
+'''
 reader = ImageReader()
 omeMeta = MetadataTools.createOMEXMLMetadata()
 reader.setMetadataStore(omeMeta)
@@ -107,14 +107,14 @@ physSizeZ = omeMeta.getPixelsPhysicalSizeZ(0)
 
 print('pixel x/y:'+str(physSizeX.value(UNITS.MICROM)))
 print('pixel z:'+str(physSizeZ.value(UNITS.MICROM)))
-
 channels_luts = []
+'''
 
 print("Available devices:");
 for name in CLIJ.getAvailableDeviceNames():
   print(name);
 
-
+'''
 for nc in range(omeMeta.getChannelCount(0)):
   channel_name = omeMeta.getChannelName(0, nc)
   if channel_name:
@@ -131,8 +131,7 @@ for nc in range(omeMeta.getChannelCount(0)):
   else:
     channels_luts.append(None)
     print('No channel color detected from the metadata')
-#lll
-#physSizeX.value(UNITS.MICROM)
+'''
             
 for img_name in img_file_list:
   path = os.path.join(img_folder_path, img_name)
@@ -146,9 +145,35 @@ for img_name in img_file_list:
   options.setColorMode(ImporterOptions.COLOR_MODE_COLORIZED) #Open with Color default from the Original format
   options.setOpenAllSeries( False ) #Just open the 1st serie, the other one is just a thumbnail to have a quick overview
   imps_img = BF.openImagePlus(options)
-  imp_img = imps_img[0]   
-  #imp_img.show()
-  #imp_psf.show()
+  imp_img = imps_img[0]    
+  
+  reader = ImageReader()
+  omeMeta = MetadataTools.createOMEXMLMetadata()
+  reader.setMetadataStore(omeMeta)
+  reader.setId(psf_file.getAbsolutePath())
+  physSizeX = omeMeta.getPixelsPhysicalSizeX(0)
+  physSizeY = omeMeta.getPixelsPhysicalSizeY(0)
+  physSizeZ = omeMeta.getPixelsPhysicalSizeZ(0)
+  
+  channels_luts = []
+  for nc in range(omeMeta.getChannelCount(0)):
+    channel_name = omeMeta.getChannelName(0, nc)
+    if channel_name:
+      print('Channel name:'+omeMeta.getChannelName(0, nc))
+    else:
+      print('No channel name detected from the metadata')
+    ome_color = omeMeta.getChannelColor(0,nc)
+    #print(omeMeta.getChannelColor(0,nc))
+    if(ome_color):
+      javaColor = Color(ome_color.getRed(), ome_color.getGreen(), ome_color.getBlue(),
+          ome_color.getAlpha())
+      luts = LUT.createLutFromColor(javaColor)
+      channels_luts.append(luts)
+    else:
+      channels_luts.append(None)
+      print('No channel color detected from the metadata')
+  
+  
   
   n_channel = imp_img.getNChannels()
   n_z = imp_img.   getNSlices()
@@ -174,7 +199,7 @@ for img_name in img_file_list:
     DeconvolveRichardsonLucyFFT.deconvolveRichardsonLucyFFT(clij2, gpuImg, gpuPSF, tempOut, iterations, regularizationFactor, False);
     deconvolved = clij2.pull(tempOut);
     
-    #Rescale the intesity to 12/16bits range or min/max
+    #Rescale the intensity to 12/16bits range or min/max
     min_i = 0
     max_i = pow(2, 16)-1
     
